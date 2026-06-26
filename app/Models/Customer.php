@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
-use Database\Factories\CompanyFactory;
+use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int $company_id
  * @property string $rut
  * @property string $razon_social
  * @property string|null $giro
@@ -22,24 +25,27 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  */
 #[Fillable(['rut', 'razon_social', 'giro', 'direccion', 'comuna', 'email', 'telefono'])]
-class Company extends Model
+class Customer extends Model
 {
-    /** @use HasFactory<CompanyFactory> */
+    /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
     /**
-     * @return HasMany<User, $this>
+     * @return BelongsTo<Company, $this>
      */
-    public function users(): HasMany
+    public function company(): BelongsTo
     {
-        return $this->hasMany(User::class);
+        return $this->belongsTo(Company::class);
     }
 
     /**
-     * @return HasMany<Customer, $this>
+     * Scope a query to only include customers of the given company.
+     *
+     * @param  Builder<Customer>  $query
      */
-    public function customers(): HasMany
+    #[Scope]
+    protected function forCompany(Builder $query, int $companyId): void
     {
-        return $this->hasMany(Customer::class);
+        $query->where('company_id', $companyId);
     }
 }
