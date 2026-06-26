@@ -60,7 +60,7 @@ it('allows the same rut for different companies', function () {
     ]);
 
     $response->assertRedirect(route('customers.index'));
-    expect(Customer::where('rut', '12.345.678-5')->count())->toBe(2);
+    expect(Customer::withoutGlobalScopes()->where('rut', '12.345.678-5')->count())->toBe(2);
 });
 
 it('rejects a duplicate rut within the same company', function () {
@@ -116,7 +116,7 @@ it('cannot update a customer from another company', function () {
         'razon_social' => 'Hackeado',
     ]);
 
-    $response->assertForbidden();
+    $response->assertNotFound();
     expect($other->fresh()->razon_social)->not->toBe('Hackeado');
 });
 

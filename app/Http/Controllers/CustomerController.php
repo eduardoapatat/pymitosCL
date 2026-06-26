@@ -7,7 +7,7 @@ use App\Http\Requests\UpdateCustomerRequest;
 use App\Models\Customer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
+use Illuminate\Routing\Attributes\Controllers\Authorize;
 use Illuminate\Support\Facades\Log;
 
 class CustomerController extends Controller
@@ -15,11 +15,9 @@ class CustomerController extends Controller
     /**
      * Display the company's customers.
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $customers = Customer::forCompany($request->user()->company_id)
-            ->orderBy('razon_social', 'asc')
-            ->get();
+        $customers = Customer::all();
 
         return response()->json($customers);
     }
@@ -44,16 +42,16 @@ class CustomerController extends Controller
     /**
      * Display the given customer.
      */
-    public function show(Request $request, Customer $customer): JsonResponse
+    #[Authorize('view', 'customer')]
+    public function show(Customer $customer): JsonResponse
     {
-        $this->authorizeCompany($request, $customer);
-
         return response()->json($customer);
     }
 
     /**
      * Update the given customer.
      */
+    #[Authorize('update', 'customer')]
     public function update(UpdateCustomerRequest $request, Customer $customer): RedirectResponse
     {
         $customer->update($request->validated());
@@ -69,10 +67,9 @@ class CustomerController extends Controller
     /**
      * Remove the given customer.
      */
-    public function destroy(Request $request, Customer $customer): RedirectResponse
+    #[Authorize('delete', 'customer')]
+    public function destroy(Customer $customer): RedirectResponse
     {
-        $this->authorizeCompany($request, $customer);
-
         $customer->delete();
 
         Log::info('Customer deleted', [
@@ -81,13 +78,5 @@ class CustomerController extends Controller
         ]);
 
         return to_route('customers.index');
-    }
-
-    /**
-     * Ensure the customer belongs to the current user's company.
-     */
-    private function authorizeCompany(Request $request, Customer $customer): void
-    {
-        abort_unless($customer->company_id === $request->user()->company_id, 404);
     }
 }
