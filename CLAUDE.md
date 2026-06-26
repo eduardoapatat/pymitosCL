@@ -213,3 +213,15 @@ Vue components must have a single root element.
 - IMPORTANT: Activate `inertia-vue-development` when working with Inertia Vue client-side patterns.
 
 </laravel-boost-guidelines>
+
+# PymitoCL
+
+- This is a multi-tenant SaaS ERP for Chilean pymes. Every domain table (Cliente, Producto, Documento, etc.) belongs to an Empresa via `empresa_id` and must be scoped so one empresa never sees another's data. Tenancy starts simple (`empresa_id` + scope) and may evolve to `stancl/tenancy` later.
+
+## Logging
+
+- Log important business operations (document emission, state changes, payments, stock movements, exports) with structured context so the system is auditable. Log internal identifiers (`empresa_id`, `cliente_id`, `documento_id`), never personal data in clear text (no full RUT, email, names in logs).
+
+## Data protection (Chile)
+
+- This app handles real Chilean personal data (RUT, razon social, email, address). When touching personal data, exports, or logs, activate the `chilean-data-protection` skill and follow Ley 21.719 principles (minimization, purpose, security, no personal data in logs).
