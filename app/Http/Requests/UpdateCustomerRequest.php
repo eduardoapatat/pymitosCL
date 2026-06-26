@@ -29,9 +29,12 @@ class UpdateCustomerRequest extends FormRequest
      */
     public function rules(): array
     {
+        /** @var Customer $customer */
+        $customer = $this->route('customer');
+
         return $this->customerRules(
             $this->user()->company_id,
-            $this->route('customer')->id,
+            $customer->id,
         );
     }
 }
