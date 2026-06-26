@@ -29,8 +29,11 @@ class UpdateCustomerRequest extends FormRequest
      */
     public function rules(): array
     {
-        /** @var Customer $customer */
         $customer = $this->route('customer');
+
+        if (! $customer instanceof Customer) {
+            return [];
+        }
 
         return $this->customerRules(
             $this->user()->company_id,
