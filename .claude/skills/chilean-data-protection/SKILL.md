@@ -1,6 +1,6 @@
 ---
 name: chilean-data-protection
-description: 'ACTIVATE whenever code touches personal data in a Chilean context. This includes RUT, names, email, phone, address, or any contact data of people or companies; creating or changing migrations/models/forms/exports that store, display, transfer, or delete such data; writing logs that might contain personal data; building data exports (Excel/PDF/API); automated decisions or profiling; and any auditing, consent, or data-retention work. Activate when the user mentions ley de proteccion de datos, datos personales, datos sensibles, privacidad, RUT como dato personal, Ley 19.628, Ley 21.719, anonimizacion, consentimiento, retencion de datos, ARSOP/ARCO rights, or logging of business operations. This skill encodes the obligations of Chiles Ley 21.719 (in force from 1 December 2026, replacing Ley 19.628) as practical engineering rules. Do NOT activate for purely presentational UI work with no personal data, or backend logic that handles no personal/contact information.'
+description: 'ACTIVATE when code stores, displays, deletes, exports, or transfers personal data in a Chilean context: migrations/models/forms/Eloquent for fields like RUT, name, email, phone, or address of people or companies; data exports (Excel/PDF/API) containing such fields; deletion/anonymization flows; consent handling; data-retention rules; automated decisions or profiling about a person; or a data-breach notification flow. Also activate when the user mentions ley de proteccion de datos, datos personales, datos sensibles, RUT como dato personal, Ley 21.719, anonimizacion, seudonimizacion, consentimiento, retencion de datos, or ARSOP/ARCO rights. This skill encodes Chiles Ley 21.719 (in force 1 December 2026) as engineering rules. Do NOT activate for: UI-only work with no personal data; backend logic handling only internal identifiers (e.g. logging with cliente_id/user_id); or features that touch no personal/contact fields.'
 metadata:
   author: reusable
 ---
@@ -8,6 +8,8 @@ metadata:
 # Chilean Data Protection (Ley 21.719) — Engineering Rules
 
 Ley 21.719 (published 13 Dec 2024, in force from **1 December 2026**) fully replaces Ley 19.628 and creates the Data Protection Agency (APDP). This skill turns that law into practical rules to follow while writing code. It is written to be reusable across projects.
+
+This is an engineering guide, not formal legal advice; for complex cases defer to a lawyer. Where the law is nuanced, prefer the safer default in code and flag the decision rather than over-claiming compliance.
 
 Non-compliance is expensive: fines scale from minor (up to 5,000 UTM), serious (up to 10,000 UTM) to very serious (up to 20,000 UTM), and on repeat offenses up to 4% of annual Chilean revenue. The APDP can also suspend or prohibit processing. Build to comply from day one.
 
@@ -24,9 +26,9 @@ Non-compliance is expensive: fines scale from minor (up to 5,000 UTM), serious (
 1. **Lawfulness & purpose**: every personal data field must have a declared, legitimate purpose. Do not reuse data for unrelated purposes.
 2. **Proportionality / minimization**: store only what the purpose requires. No personal fields "just in case".
 3. **Quality**: keep data accurate and up to date; allow rectification.
-4. **Security**: protect data by design — access controls, encryption at rest/in transit, tenant/scope isolation so one party never sees anothers data.
-5. **Transparency**: be able to tell the subject what is processed, why, on what legal basis, and for how long.
-6. **Accountability**: be able to demonstrate compliance (auditable records of processing).
+4. **Security (privacy by design & by default, art. 14 quater/quinquies)**: protect data from the design stage and by default — access controls, encryption at rest/in transit, pseudonymization, tenant/scope isolation so one party never sees anothers data. Measures must be proportional to the risk.
+5. **Transparency (art. 14 ter)**: be able to inform the subject (publicly, e.g. on the website) what is processed, why, on what legal basis, recipients, retention period, ARSOP rights, contact channel, and international transfers.
+6. **Accountability (art. 14 a)**: be able to **prove** lawful processing to the APDP.
 
 ## Legal basis for processing (every personal-data use needs one)
 
@@ -44,12 +46,12 @@ When consent is the legal basis, persist it so it is auditable:
 
 - A **timestamp** of when consent was given.
 - The **version of the terms/policy** accepted.
-- The **identity/session/IP** of who gave it.
+- The **identity, session information and/or IP address** of who gave it, where proportionate and lawful.
 - A way to record **withdrawal** of consent (consent is revocable at any time, and revocation must be as easy as giving it).
 
 ## Data subject rights (ARSOP) — the data model must support them
 
-Access, Rectification, Suppression (deletion), Opposition, Portability — plus the right to withdraw consent and to challenge automated decisions. Practically:
+Access, Rectification, Suppression (deletion), Opposition, Portability (also Blocking) — plus the right to withdraw consent and to challenge automated decisions. The subject must be able to exercise them via a simple channel, and the controller must respond within the statutory deadline (around 30 days per art. 10 — verify the deadline in force, as it may be adjusted by regulation). Practically:
 
 - Model must allow **reading** all personal data held about a subject.
 - Model must allow **rectifying** and **deleting/anonymizing** a subjects data without breaking the integrity of legally retained records (e.g. issued invoices).
@@ -57,18 +59,21 @@ Access, Rectification, Suppression (deletion), Opposition, Portability — plus 
 
 ## Engineering rules (what to actually do in code)
 
-- **Catalog the data**: for each personal field, know its type, subject, purpose, legal basis, recipients, source, and retention period. Document this in domain docs (not in code comments).
-- **Logging**: never log personal data in clear text (no full RUT, email, name). Log internal identifiers (`*_id`) and masked values when needed (e.g. RUT `12.***.**8-9`).
+- **Transparency disclosure (art. 14 ter), not a literal "RAT"**: the law does NOT mandate an internal Registro de Actividades de Tratamiento by that name (that is a GDPR import). What it requires is to **publicly disclose** (e.g. on the website) the data policy, controller + contact, purposes, legal basis, security measures, retention periods, ARSOP rights, and international transfers. Keeping an internal catalog of these per field is good practice that makes the disclosure possible — document it (README/docs, not code comments).
+- **Logging**: prefer internal identifiers (`user_id`, `cliente_id`, `empresa_id`) instead of direct identifiers such as RUT, email or name. These ids may still constitute indirect personal data for the controller (they resolve to a person via the DB). Keeping the mapping between internal ids and direct identifiers protected and separated reduces exposure and may support pseudonymization strategies, but does not automatically constitute legal pseudonymization. Do not put RUT, email or name in logs at all; no need to mask, they simply do not belong there.
 - **Access audit log**: to prove accountability, record WHO accessed/exported WHICH personal data and when (e.g. "user X exported the client list", "user Y viewed cliente_id Z") — log the actor and the target id, never the personal data itself. This is separate from masking: masking hides the data, the audit log proves access control.
 - **Exports**: include only the fields the export legally requires; never dump full tables of personal data unfiltered. Every export should produce an access-audit entry.
 - **Retention**: distinguish data with a legal retention obligation (e.g. tax documents — do not freely delete) from contact data that can be anonymized once no longer needed.
-- **Anonymization vs pseudonymization (do not confuse them)**:
-  - **Pseudonymization** = data can still be re-identified with extra info. A hash of a RUT (MD5/SHA256) is only pseudonymization — the RUT space is small and brute-forceable, so a hash does NOT make it anonymous. Useful internally but still treated as personal data.
-  - **Anonymization** = irreversible. The original value is destroyed and replaced by a random UUID or a generic neutral value, so the subject can never be re-identified. Only truly anonymized data falls outside the law.
-  - When fulfilling a deletion/suppression right, anonymize (don't just hash) while keeping references to legally retained records intact.
+- **Three levels — masking vs pseudonymization vs anonymization (do not confuse them)**:
+  - **Masking / obfuscation** (weakest) = hiding part of a value for display, e.g. `12.***.**8-9`. Masking is not recognized as anonymization or legal pseudonymization and should not be relied upon as a standalone compliance control. For a RUT it is reconstructible (small space + visible verifier digit). **Use only for UI/presentation** (showing a partial RUT to a user); it may complement other measures but never replaces them. NEVER rely on it for logs or storage.
+  - **Pseudonymization** (legal definition) = data can no longer be attributed to a subject **without additional information**, AND that additional information is **kept separate and protected** by technical/organizational measures. Note: a plain hash of a RUT is NOT proper pseudonymization — the RUT space is small and brute-forceable, and no protected "additional information" is kept separate. Pseudonymized data is still personal data.
+  - **Anonymization** (strongest) = irreversible removal or transformation of identifiers such that re-identification is no longer reasonably possible. Note: replacing a value with a random UUID does NOT anonymize on its own if a correspondence table (uuid↔person) still exists — that is still personal data. Only truly anonymized data falls outside the law.
+  - When fulfilling a suppression right, evaluate the correct action: delete, block, retain under a legal obligation (e.g. tax records), or irreversibly anonymize — do not mask or hash. See Retention above.
 - **Sensitive data**: avoid collecting it; if unavoidable, isolate it, restrict access, and encrypt.
 - **Automated decisions / profiling**: if logic profiles or auto-decides about a person, make it explainable and contestable.
 - **Third parties / cloud / international transfers**: track which providers and which regions process the data; ensure adequate safeguards.
+- **Data breaches (Art. 14 quinquies/sexies)**: real security measures are pseudonymization, encryption and restricted access (masking is not one). On a breach with reasonable risk to subjects, notify the APDP without undue delay (no fixed 72h deadline), keep an internal record of the incident and remediation, and notify affected subjects directly if sensitive/minors/financial data is involved.
+- **DPO (Delegado de Proteccion de Datos, arts. 49-50)**: the law establishes cases where appointing a DPO may be required, considering the nature, scale and risks of the processing. Even when not legally required, designating one is good accountability practice.
 
 ## Minimum compliance checklist (verify these exist for the system)
 
@@ -76,4 +81,4 @@ Access, Rectification, Suppression (deletion), Opposition, Portability — plus 
 
 ## Project-specific notes
 
-(Each project completes this: exact retention periods, which fields are masked, consent requirements, and any additional obligations.)
+(Each project completes this: exact retention periods per field, the public transparency disclosure (art. 14 ter), consent requirements, whether a DPO is designated, and any additional obligations.)
